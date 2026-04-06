@@ -1,62 +1,80 @@
-# OCR Pipeline for Historical Documents
-
-An end-to-end Optical Character Recognition (OCR) pipeline built in Python, designed to extract and correct text from degraded historical documents. Developed and run on Google Colab.
+#  Historical OCR Pipeline 
 
 ## Overview
+This project implements an end-to-end Optical Character Recognition (OCR) system for transcribing 17th-century Spanish printed texts using a CRNN (Convolutional Recurrent Neural Network) architecture with CTC loss.
 
-This project implements a complete OCR pipeline that handles synthetic document generation, multi-stage image preprocessing, text recognition using multiple OCR engines, and post-processing correction — including LLM-based correction using GPT-4o-mini.
+The system is trained on the **RODRIGO corpus** (~15,000 line images) and is designed to handle historical typography, ligatures, and diacritics found in early modern manuscripts.
 
-## Features
+---
 
-- **Synthetic Document Generation** — Creates realistic degraded historical documents with noise, stains, aging effects, perspective distortion, and blur for training/testing
-- **PDF Support** — Extracts pages from uploaded PDF documents at 300 DPI
-- **Multi-Stage Preprocessing** — Grayscale conversion → Denoising (Non-Local Means) → Deskewing → CLAHE contrast enhancement → Aspect-ratio-preserving resize
-- **Multiple OCR Engines** — Benchmarks three engines side by side:
-  - **TrOCR** (Microsoft) — Transformer-based, state-of-the-art
-  - **Tesseract** — Traditional rule-based baseline
-  - **EasyOCR** — Deep learning based, multilingual
-- **Post-processing Correction**
-  - Lexicon-based correction using edit distance (for Spanish text)
-  - LLM-based correction using GPT-4o-mini
-- **Evaluation Metrics** — Character Error Rate (CER) and Word Error Rate (WER) computed across all engines
+##  Key Features
+- End-to-end OCR pipeline using CNN + BiLSTM + CTC Loss
+- No character-level annotations required (sequence learning via CTC)
+- Handles historical Spanish text with diacritics and ligatures
+- Beam search decoding with optional lexicon constraints
+- LLM-based post-processing for error correction (Gemini / GPT-4o-mini)
+- Evaluation using CER (Character Error Rate) and WER (Word Error Rate)
 
-## Project Structure
-```
-OCR_Pipeline_Research/
-├── data/
-│   ├── images/          # Synthetic, real, and PDF-derived document images
-│   └── annotations/     # Ground truth text labels
-├── src/
-│   ├── preprocess.py    # ImagePreprocessor class (5-stage pipeline)
-│   ├── ocr_engines.py   # TrOCR, Tesseract, EasyOCR wrappers
-│   ├── metrics.py       # CER and WER computation
-│   ├── corrector.py     # LexiconCorrector (edit distance)
-│   └── vocab_builder.py # Vocabulary builder from dataset texts
-├── results/             # Output visualizations and evaluation reports
-├── models/              # Saved model weights
-└── OCR_Pipeline_Complete.ipynb  # Main notebook
-```
+---
 
-## Tech Stack
+##  Architecture
 
-- **Python** (Google Colab)
-- **PyTorch** + **HuggingFace Transformers** (TrOCR)
-- **OpenCV** (image preprocessing)
-- **Pillow** (image generation)
-- **Tesseract OCR** + **EasyOCR**
-- **OpenAI GPT-4o-mini** (LLM-based correction)
-- **editdistance** (lexicon correction and metrics)
-- **pdf2image** (PDF extraction)
+### CRNN (CNN + RNN + CTC)
+- **CNN (VGG-style):** Extracts spatial features from text-line images
+- **BiLSTM:** Models sequential dependencies in both directions
+- **CTC Loss:** Enables alignment-free training for variable-length sequences
 
-## How to Run
+---
 
-1. Open `OCR_Pipeline_Complete.ipynb` in [Google Colab](https://colab.research.google.com/)
-2. Mount your Google Drive when prompted
-3. Add your OpenAI API key to Colab Secrets (🔑 icon in the left sidebar) with the name `OPENAI_API_KEY`
-4. Run all cells in order
+##  Design Choices
 
-## Notes
+### Architecture Choice: CRNN with CTC
+A CRNN architecture is used because it enables sequence recognition from images without requiring character-level segmentation:
+- CNN extracts column-wise visual features (strokes, shapes, typography)
+- BiLSTM captures contextual dependencies and ligatures
+- CTC loss aligns predictions with text sequences without explicit alignment
 
-- GPU runtime recommended (Runtime → Change runtime type → T4 GPU)
-- First-time setup installs dependencies and downloads TrOCR model (~3–5 minutes)
-- Pipeline is configured for Spanish historical documents but can be adapted for other languages
+---
+
+### LLM Post-Correction
+A lightweight LLM (Gemini / GPT-4o-mini) is used as a **post-processing step**:
+- Corrects common OCR errors (e.g., rn → m, 0 → o, I → l)
+- Improves linguistic coherence and spelling
+- Does not replace the OCR model — only refines outputs
+
+---
+
+##  Evaluation Metrics
+
+- **CER (Character Error Rate):**  
+  Measures character-level edit distance  
+  → Primary metric for OCR performance  
+
+- **WER (Word Error Rate):**  
+  Measures word-level errors  
+  → Sensitive to spacing and segmentation  
+
+Evaluation is performed:
+- Before LLM correction  
+- After LLM correction  
+
+---
+
+##  Text Region Detection
+A morphology + contour-based approach is used to:
+- Detect main text regions
+- Remove marginalia, headers, and noise
+- Ensure model processes only relevant content
+
+---
+
+##  Dataset
+- **RODRIGO OCR Dataset** (Zenodo)
+- ~15,000 line images from 16th–17th century Spanish texts
+
+---
+
+## ▶️ How to Run
+
+```bash
+pip install -r requirements.txt
